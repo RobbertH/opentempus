@@ -37,7 +37,9 @@ git clone https://github.com/RobbertH/opentempus && cd opentempus
 OPENTEMPUS_PUBLIC_URL=https://cal.example.com docker compose up -d
 ```
 
-Open the URL, create an account, add a calendar (an iCal/ICS address from Google, Outlook, iCloud, … or a CalDAV account), add a friend, create a share or a sync target.
+Open the URL, create an account, add a calendar, add a friend, create a share or a sync target.
+
+Getting the address or app password out of your provider is the fiddly part, so the app has click-by-click guides behind the **?** icon in the sidebar, with drawings of each screen: Google, Outlook/Microsoft 365, Proton, mailbox.org, iCloud, Fastmail and Nextcloud. The same guides are in [docs/CONNECTING.md](docs/CONNECTING.md).
 
 Set `OPENTEMPUS_ALLOW_REGISTRATION=false` after your friends have signed up if you do not want an open instance.
 
@@ -89,7 +91,7 @@ server/            Rust (axum + sqlx + Postgres)
   src/sharing.rs   filters, visibility, projection, free-slot maths
   src/routes/      HTTP API
 web/               React + TypeScript web app (Vite), embedded in the binary
-docs/              architecture, roadmap, decision records, agent guide
+docs/              architecture, roadmap, decision records, agent and connection guides
 ```
 
 ## License

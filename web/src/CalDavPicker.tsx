@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { api, type CalDavConfig, type DiscoveredCalendar } from "./api";
 import { ErrorBox } from "./components";
+import { HelpLink } from "./help/HelpCenter";
 
 export function CalDavPicker({ config, setConfig }: { config: CalDavConfig; setConfig: (c: CalDavConfig) => void }) {
   const [calendars, setCalendars] = useState<DiscoveredCalendar[] | null>(null);
@@ -33,7 +34,11 @@ export function CalDavPicker({ config, setConfig }: { config: CalDavConfig; setC
       <label>
         CalDAV server
         <input value={config.url ?? ""} onChange={(e) => setConfig({ ...config, url: e.target.value })} required placeholder="https://caldav.icloud.com/  ·  https://cloud.example.com/remote.php/dav/" />
-        <span className="hint">iCloud: https://caldav.icloud.com/ with an app-specific password. Fastmail: https://caldav.fastmail.com/. Nextcloud: https://host/remote.php/dav/.</span>
+        <span className="hint">
+          Most services need an app password rather than your normal one. Setup guide:{" "}
+          <HelpLink id="mailbox">mailbox.org</HelpLink> · <HelpLink id="icloud">iCloud</HelpLink> ·{" "}
+          <HelpLink id="fastmail">Fastmail</HelpLink> · <HelpLink id="nextcloud">Nextcloud</HelpLink>
+        </span>
       </label>
       <div className="row">
         <label>

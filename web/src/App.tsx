@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
+import { HelpButton, HelpProvider } from "./help/HelpCenter";
 import CalendarPage from "./pages/CalendarPage";
 import FlowsPage from "./pages/FlowsPage";
 import TargetsPage from "./pages/TargetsPage";
@@ -17,8 +18,11 @@ function Shell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">◷</span> OpenTempus
+        <div className="brand-row">
+          <div className="brand">
+            <span className="brand-mark">◷</span> OpenTempus
+          </div>
+          <HelpButton />
         </div>
         <nav>
           <NavLink to="/" end>Calendar</NavLink>
@@ -60,7 +64,9 @@ function Shell() {
 export default function App() {
   return (
     <AuthProvider>
-      <Shell />
+      <HelpProvider>
+        <Shell />
+      </HelpProvider>
     </AuthProvider>
   );
 }

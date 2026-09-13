@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api, type CalDavConfig, type Source, type SourceKind } from "../api";
 import { CalDavPicker } from "../CalDavPicker";
+import { HelpLink } from "../help/HelpCenter";
 import { Badge, Empty, ErrorBox, Modal, Page, useAsync } from "../components";
 import { fmtDateTime } from "../time";
 
@@ -41,7 +42,12 @@ export default function SourcesPage() {
         Calendars flow <em>in</em> here. Each one gets a category (work, personal, …) that your sharing rules can key on.
       </p>
       <ErrorBox error={error ?? actionError} />
-      {data && data.length === 0 && <Empty>No calendars yet. Add the iCal/ICS address of any calendar to start syncing.</Empty>}
+      {data && data.length === 0 && (
+        <Empty>
+          No calendars yet. Add the iCal/ICS address of any calendar to start syncing, or follow a{" "}
+          <HelpLink>setup guide</HelpLink> for Google, Outlook, Proton, mailbox.org and others.
+        </Empty>
+      )}
       <div className="list">
         {data?.map((s) => (
           <div className="card row-card" key={s.id}>
@@ -165,7 +171,8 @@ function SourceForm({ source, onClose, onSaved }: { source: Source | null; onClo
               iCal / ICS address
               <input value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" />
               <span className="hint">
-                Google: calendar settings → "Secret address in iCal format". Outlook: "Publish calendar" → ICS link. Apple/iCloud: share as public calendar (webcal://).
+                Where do I find this? <HelpLink id="google">Google</HelpLink> · <HelpLink id="outlook">Outlook</HelpLink> ·{" "}
+                <HelpLink id="proton">Proton</HelpLink> · <HelpLink>all services</HelpLink>
               </span>
             </label>
             <details>

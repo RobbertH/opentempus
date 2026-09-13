@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { DEFAULT_FILTERS, api, type CalDavConfig, type Filters, type Preset, type SharedEvent, type Source, type Target, type Visibility } from "../api";
 import { CalDavPicker } from "../CalDavPicker";
 import { Badge, Empty, ErrorBox, Modal, Page, useAsync } from "../components";
+import { HelpLink } from "../help/HelpCenter";
 import { FiltersEditor, VisibilityEditor, filterWords, visibilityWords } from "../RuleEditor";
 import { fmtDateTime } from "../time";
 import { SharedEventTable } from "./SharedWithMePage";
@@ -52,7 +53,13 @@ export default function TargetsPage() {
         Write a filtered view of your calendars <em>into</em> another calendar, for example your personal blockers into your work calendar as "Busy". Mirrored events are tagged so they are never synced back.
       </p>
       <ErrorBox error={targets.error ?? err} />
-      {targets.data && targets.data.length === 0 && <Empty>No sync targets yet. Add one to push busy blocks into a CalDAV calendar (iCloud, Fastmail, Nextcloud, …).</Empty>}
+      {targets.data && targets.data.length === 0 && (
+        <Empty>
+          No sync targets yet. Add one to push busy blocks into a CalDAV calendar. See the{" "}
+          <HelpLink>setup guides</HelpLink> for mailbox.org, iCloud, Fastmail and Nextcloud. Google and Outlook cannot
+          receive events yet.
+        </Empty>
+      )}
       <div className="list">
         {targets.data?.map((t) => (
           <div className="card" key={t.id}>

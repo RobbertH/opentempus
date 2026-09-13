@@ -7,3 +7,4 @@
 * For CalDAV work, Radicale (`pip install radicale`) is a convenient local server; see `docs/ARCHITECTURE.md`.
 * Anything that touches what a share exposes needs a unit test in `sharing.rs` or `ics/`.
 * Keep the "one binary + Postgres" rule (see `docs/adr/0001-postgres-as-queue.md`).
+* Provider setup guides live in `web/src/help/guides.ts`, drawn with the SVG kit in `web/src/help/Shot.tsx`. They are schematics, not screenshots: do not paste captures of other companies' interfaces. When a provider moves a button, fix the label there and keep `docs/CONNECTING.md` in step.
