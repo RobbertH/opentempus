@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opentempus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentempus}
+      POSTGRES_DB: opentempus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opentempus"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: ghcr.io/robberth/opentempus:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://opentempus:${POSTGRES_PASSWORD:-opentempus}@db:5432/opentempus
+      # The URL your users (and their calendar apps) reach this instance on.
+      OPENTEMPUS_PUBLIC_URL: ${OPENTEMPUS_PUBLIC_URL:-http://localhost:8080}
+      OPENTEMPUS_ALLOW_REGISTRATION: ${OPENTEMPUS_ALLOW_REGISTRATION:-true}
+      RUST_LOG: ${RUST_LOG:-info,sqlx=warn}
+    ports:
+      - "${OPENTEMPUS_PORT:-8080}:8080"
+
+volumes:
+  pgdata:

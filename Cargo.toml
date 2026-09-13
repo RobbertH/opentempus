@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+repository = "https://github.com/RobbertH/opentempus"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
