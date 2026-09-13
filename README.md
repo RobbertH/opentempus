@@ -6,19 +6,19 @@ All your calendars flow *in* (Google, Outlook, iCloud, Nextcloud, anything with 
 
 Think of it as an open-source, self-hosted alternative to OneCal, built so you can also hand an AI agent a deliberately narrow view of your life ("here is when I am free, nothing else") and let it find the padel slot that works for you and your friends.
 
-> Status: early. Inbound sync via iCal/ICS URLs, accounts, friends, sharing rules, ICS feeds out, a JSON API for agents including multi-person availability, and a web app. See [ROADMAP.md](docs/ROADMAP.md) for what is next (write-back to calendars, Google/Microsoft/CalDAV connectors, preferences, mobile).
+> Status: early but usable. Inbound sync via iCal/ICS URLs and CalDAV, write-back into CalDAV calendars, accounts, friends, sharing rules, ICS feeds out, a JSON API for agents including multi-person availability, a flow map of everything that goes in and out, and a web app. See [ROADMAP.md](docs/ROADMAP.md) for what is next (Google/Microsoft OAuth connectors, push notifications, preferences, mobile).
 
 ## How it works
 
 ```
-   Google / Outlook / iCloud / Nextcloud / ...          friends' calendar apps
-        │  (iCal URL, polled)                                   ▲  ICS feed
-        ▼                                                       │
- ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──┴───────────┐
- │  connectors  │──▶ │  normalized  │──▶ │  share rules │──▶ │  projections │──▶ JSON API for agents
- │  (sync)      │    │  events      │    │  (filters +  │    │  (evaluated  │
- └──────────────┘    │  + instances │    │  visibility) │    │   on read)   │──▶ friend view in web app
-                     └──────────────┘    └──────────────┘    └──────────────┘
+   Google / Outlook / iCloud / Nextcloud / ...        ┌──▶ your other calendars (CalDAV write-back: "Busy" blocks)
+        │  (iCal URL or CalDAV, polled)               │
+        ▼                                             │  ┌──▶ friends' calendar apps (ICS feed) and their OpenTempus view
+ ┌──────────────┐    ┌──────────────┐    ┌────────────┴──┴───┐
+ │  connectors  │──▶ │  normalized  │──▶ │  rules: filters + │──▶ JSON API for AI agents (events, free slots, group availability)
+ │  (sync)      │    │  events      │    │  visibility       │
+ └──────────────┘    │  + instances │    └───────────────────┘
+                     └──────────────┘
 ```
 
 * **Sources** are inbound calendars. Each has a *category* you assign (work, personal, sport, …).
@@ -26,8 +26,9 @@ Think of it as an open-source, self-hosted alternative to OneCal, built so you c
 * **Shares** are rules with two halves:
   * **Filters**: *which* events go out. By calendar, by category, by your RSVP (drop declined by default), free/busy, all-day, and how far into the past/future the audience may look.
   * **Visibility**: *what* the audience sees of each event. Busy blocks are always included; everything else (category, origin calendar, title, location, RSVP, free/busy, description) is opt-in. Presets: *Busy only*, *Category*, *Details*, *Full*.
-* A share targets either a **friend** (an account on the same instance you have accepted a friend request from) or a **secret link** (for a calendar app subscription or an AI agent).
-* Shares are pure projections evaluated at read time. Change a rule and every consumer sees the change on their next fetch. Nothing is copied.
+* A **share** targets either a **friend** (an account on the same instance you have accepted a friend request from) or a **secret link** (for a calendar app subscription or an AI agent). Shares are pure projections evaluated at read time; nothing is copied.
+* A **sync target** applies the same kind of rule but *writes* the result into another calendar over CalDAV, the classic "put my personal blockers into my work calendar as Busy". Mirrored events carry a marker so they are never imported back, which makes a calendar that is both a source and a target safe (two-way).
+* The **Flows** page draws all of it: calendars in on the left, OpenTempus in the middle, every rule out on the right. Click any node to see what feeds it or what it feeds. Switch to **Who has access** to see the same graph grouped by person, agent or destination calendar, with exactly which fields each one sees.
 
 ## Quick start (Docker)
 
@@ -36,7 +37,7 @@ git clone https://github.com/RobbertH/opentempus && cd opentempus
 OPENTEMPUS_PUBLIC_URL=https://cal.example.com docker compose up -d
 ```
 
-Open the URL, create an account, add a calendar (the iCal/ICS address from Google, Outlook, iCloud, …), add a friend, create a share.
+Open the URL, create an account, add a calendar (an iCal/ICS address from Google, Outlook, iCloud, … or a CalDAV account), add a friend, create a share or a sync target.
 
 Set `OPENTEMPUS_ALLOW_REGISTRATION=false` after your friends have signed up if you do not want an open instance.
 
@@ -84,7 +85,7 @@ curl -X POST https://cal.example.com/api/v1/public/availability \
 server/            Rust (axum + sqlx + Postgres)
   migrations/      SQL migrations, applied at startup
   src/ics/         iCalendar parsing, recurrence expansion, feed generation
-  src/sync/        connectors, store, scheduler
+  src/sync/        connectors (ICS URL, CalDAV), CalDAV client, store, write-back, scheduler
   src/sharing.rs   filters, visibility, projection, free-slot maths
   src/routes/      HTTP API
 web/               React + TypeScript web app (Vite), embedded in the binary

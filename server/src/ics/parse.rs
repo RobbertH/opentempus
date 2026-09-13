@@ -12,6 +12,9 @@ use crate::models::{EventStatus, Rsvp, Transparency};
 
 use super::tz;
 
+/// Marker property placed on every event OpenTempus writes to a target.
+pub const MIRROR_PROPERTY: &str = "X-OPENTEMPUS-MIRROR";
+
 /// A VEVENT normalized into the shape we store.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedEvent {
@@ -96,6 +99,11 @@ fn parse_event(ev: &IcalEvent, opts: &ParseOptions) -> anyhow::Result<Option<Par
     let Some(uid) = prop_value(props, "UID") else {
         return Ok(None);
     };
+    // Events we wrote into this calendar ourselves must never come back in,
+    // otherwise a two-way calendar would echo its own mirrors.
+    if find_prop(props, MIRROR_PROPERTY).is_some() {
+        return Ok(None);
+    }
 
     let dtstart = find_prop(props, "DTSTART").ok_or_else(|| anyhow::anyhow!("event {uid} has no DTSTART"))?;
     let (start_at, all_day, timezone) = parse_datetime_prop(dtstart, opts)?;
@@ -430,6 +438,14 @@ X-MICROSOFT-CDO-BUSYSTATUS:FREE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
         let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nDTSTART:20260701T090000Z\r\nORGANIZER:mailto:ME@example.com\r\nATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
         let report = parse_ics(ics, &opts()).unwrap();
         assert_eq!(report.events[0].rsvp, Rsvp::Organizer);
+    }
+
+    #[test]
+    fn mirrored_events_are_skipped() {
+        let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nDTSTART:20260701T090000Z\r\nX-OPENTEMPUS-MIRROR:1\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let report = parse_ics(ics, &opts()).unwrap();
+        assert!(report.events.is_empty());
+        assert_eq!(report.skipped, 1);
     }
 
     #[test]

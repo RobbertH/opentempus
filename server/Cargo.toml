@@ -28,7 +28,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # ids / time
-uuid = { version = "1", features = ["v4", "serde"] }
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = { version = "0.10", features = ["serde"] }
 rrule = "0.14"
@@ -58,6 +58,7 @@ futures = "0.3"
 async-trait = "0.1"
 regex = "1"
 url = "2"
+roxmltree = "0.20"
 time = "0.3"
 
 [dev-dependencies]

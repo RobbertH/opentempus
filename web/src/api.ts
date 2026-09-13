@@ -48,11 +48,18 @@ export interface User {
 export type SourceKind = "ics_url" | "caldav" | "google" | "microsoft";
 export type SyncStatus = "never" | "ok" | "error" | "running";
 
+export interface CalDavConfig {
+  url?: string;
+  username?: string;
+  password?: string;
+  calendar_url?: string;
+}
+
 export interface Source {
   id: string;
   name: string;
   kind: SourceKind;
-  config: { url?: string; username?: string; password?: string };
+  config: CalDavConfig;
   category: string;
   color: string;
   horizon_past_days: number;
@@ -163,6 +170,30 @@ export interface SharedWithMe {
   feed_url: string;
   api_url: string;
   enabled: boolean;
+}
+
+export type TargetKind = "caldav" | "google" | "microsoft";
+
+export interface Target {
+  id: string;
+  name: string;
+  kind: TargetKind;
+  config: CalDavConfig;
+  visibility: Visibility;
+  filters: Filters;
+  placeholder_title: string;
+  enabled: boolean;
+  push_interval_secs: number;
+  last_pushed_at: string | null;
+  last_push_status: SyncStatus;
+  last_push_error: string | null;
+  mirrored_count: number;
+  created_at: string;
+}
+
+export interface DiscoveredCalendar {
+  url: string;
+  name: string;
 }
 
 export const DEFAULT_FILTERS: Filters = {

@@ -162,3 +162,34 @@ legend { padding: 0 6px; color: var(--muted); font-size: 12px; text-transform: u
   .content { padding: 16px; }
   .row-card { flex-wrap: wrap; }
 }
+
+/* nav groups */
+.nav-group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 12px 10px 2px; }
+
+/* flow map */
+.flow-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; overflow-x: auto; }
+.flow { width: 100%; min-width: 700px; height: auto; display: block; font-family: inherit; }
+.flow .node { cursor: pointer; transition: opacity 0.15s; }
+.flow .node rect:first-child { fill: var(--bg); stroke: var(--border); stroke-width: 1; }
+.flow .node:hover rect:first-child { stroke: var(--accent); }
+.flow .node.selected rect:first-child { stroke: var(--accent); stroke-width: 2; }
+.flow .node.off { opacity: 0.25; }
+.flow .node.hub rect { fill: var(--accent); stroke: var(--accent-dark); }
+.flow .node.hub .title { fill: #fff; font-weight: 700; }
+.flow .node.hub .sub { fill: rgba(255, 255, 255, 0.85); }
+.flow .title { font-size: 13px; font-weight: 600; fill: var(--text); }
+.flow .sub { font-size: 11px; fill: var(--muted); }
+.flow .edge path { fill: none; stroke: var(--muted); stroke-width: 1.5; color: var(--muted); transition: opacity 0.15s; }
+.flow .edge.on path { stroke: var(--accent); color: var(--accent); stroke-width: 2; }
+.flow .edge.off { opacity: 0.15; }
+.flow .edge.disabled path { stroke-dasharray: 4 4; }
+.flow .edge-label rect { fill: var(--panel); stroke: var(--border); }
+.flow .edge-label text { font-size: 10px; fill: var(--muted); }
+.flow .edge.on .edge-label text { fill: var(--text); }
+.detail { margin-top: 14px; }
+.detail h3 { margin: 0 0 4px; font-size: 16px; }
+.detail h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.rule-block { padding: 8px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.rule-block:first-of-type { border-top: 0; }
+ul.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.swatch-inline { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; }

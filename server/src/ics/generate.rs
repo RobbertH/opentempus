@@ -71,6 +71,62 @@ pub fn render_feed(events: &[SharedEvent], opts: &FeedOptions<'_>) -> String {
     out
 }
 
+/// Render one shared event as a standalone iCalendar object suitable for a
+/// CalDAV PUT. The result is deterministic for the same input (no DTSTAMP
+/// variation) so callers can hash it to detect changes.
+pub fn render_mirror_object(ev: &SharedEvent, placeholder_title: &str, host: &str) -> String {
+    let mut out = String::new();
+    line(&mut out, "BEGIN:VCALENDAR");
+    line(&mut out, "VERSION:2.0");
+    line(&mut out, &format!("PRODID:-//OpenTempus//{}//EN", env!("CARGO_PKG_VERSION")));
+    line(&mut out, "BEGIN:VEVENT");
+    line(&mut out, &format!("UID:{}", mirror_uid(ev.id, host)));
+    line(&mut out, &format!("DTSTAMP:{}", ev.start.format("%Y%m%dT%H%M%SZ")));
+    line(&mut out, &format!("{}:1", crate::ics::parse::MIRROR_PROPERTY));
+    if ev.all_day {
+        line(&mut out, &format!("DTSTART;VALUE=DATE:{}", ev.start.format("%Y%m%d")));
+        line(&mut out, &format!("DTEND;VALUE=DATE:{}", ev.end.format("%Y%m%d")));
+    } else {
+        line(&mut out, &format!("DTSTART:{}", ev.start.format("%Y%m%dT%H%M%SZ")));
+        line(&mut out, &format!("DTEND:{}", ev.end.format("%Y%m%dT%H%M%SZ")));
+    }
+    let summary = ev.title.clone().unwrap_or_else(|| placeholder_title.to_string());
+    line(&mut out, &format!("SUMMARY:{}", escape_text(&summary)));
+    let mut description_parts: Vec<String> = Vec::new();
+    if let Some(d) = &ev.description {
+        description_parts.push(d.clone());
+    }
+    if let Some(o) = &ev.origin_calendar {
+        description_parts.push(format!("Calendar: {o}"));
+    }
+    if let Some(c) = &ev.category {
+        description_parts.push(format!("Category: {c}"));
+        line(&mut out, &format!("CATEGORIES:{}", escape_text(c)));
+    }
+    if let Some(r) = &ev.rsvp {
+        description_parts.push(format!("RSVP: {}", rsvp_label(*r)));
+    }
+    if !description_parts.is_empty() {
+        line(&mut out, &format!("DESCRIPTION:{}", escape_text(&description_parts.join("\n"))));
+    }
+    if let Some(l) = &ev.location {
+        line(&mut out, &format!("LOCATION:{}", escape_text(l)));
+    }
+    line(&mut out, if ev.busy { "TRANSP:OPAQUE" } else { "TRANSP:TRANSPARENT" });
+    let status = match ev.rsvp {
+        Some(Rsvp::Tentative) | Some(Rsvp::NeedsAction) => "TENTATIVE",
+        _ => "CONFIRMED",
+    };
+    line(&mut out, &format!("STATUS:{status}"));
+    line(&mut out, "END:VEVENT");
+    line(&mut out, "END:VCALENDAR");
+    out
+}
+
+pub fn mirror_uid(instance_id: uuid::Uuid, host: &str) -> String {
+    format!("ot-{instance_id}@{host}")
+}
+
 fn rsvp_label(r: Rsvp) -> &'static str {
     match r {
         Rsvp::Organizer => "organizer",

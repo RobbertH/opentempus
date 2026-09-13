@@ -35,6 +35,7 @@ pub fn connector_for(kind: crate::models::SourceKind) -> anyhow::Result<Box<dyn 
     use crate::models::SourceKind::*;
     match kind {
         IcsUrl => Ok(Box::new(super::ics_url::IcsUrlConnector)),
-        Caldav | Google | Microsoft => anyhow::bail!("connector {kind:?} is not implemented yet; see ROADMAP.md"),
+        Caldav => Ok(Box::new(super::caldav_source::CalDavConnector)),
+        Google | Microsoft => anyhow::bail!("connector {kind:?} is not implemented yet; see ROADMAP.md"),
     }
 }

@@ -11,15 +11,15 @@ Rough order. Nothing here is committed to a date.
 - [x] Outbound ICS feeds per share; JSON API per share; free slots; multi-person availability
 - [x] Web app: week view, calendars, sharing, friends, shared with me
 - [x] Docker image + compose
+- [x] **Write-back** to CalDAV calendars (iCloud with app password, Fastmail, Nextcloud, Radicale, …): a *sync target* is a rule plus a destination calendar; mirrored events are tagged so they never come back.
+- [x] Inbound CalDAV connector with calendar discovery; a CalDAV calendar can be both source and target (two-way).
+- [x] **Flows** map (in → OpenTempus → out, click to trace) and **Who has access** view.
 
-## Next: real two-way sync
+## Next
 
-- [ ] **Write-back connectors** ("put my personal blockers into my work calendar", the core OneCal use case). A *sync target* is a share plus a destination calendar; the server creates/updates/deletes mirrored events there and tags them so they are never mirrored back.
-  - [ ] CalDAV target (iCloud with app password, Fastmail, Nextcloud, Radicale)
-  - [ ] Google Calendar target (OAuth, `events.insert`/`patch`/`delete` with a private extended property as marker)
-  - [ ] Microsoft Graph target
+- [ ] Google Calendar connector and target (OAuth; `events.insert`/`patch`/`delete` with a private extended property as marker). Needs OAuth client credentials configured by the instance admin.
+- [ ] Microsoft Graph connector and target.
 - [ ] **Push-based inbound**: Google push notifications and Graph subscriptions so changes land in seconds instead of on the poll interval; CalDAV `sync-collection` for cheap incremental fetches.
-- [ ] Inbound CalDAV / Google / Microsoft connectors (the trait exists, only `ics_url` is implemented). OAuth apps need client credentials configured by the instance admin.
 - [ ] Encrypt source secrets at rest with a server key (`OPENTEMPUS_SECRET_KEY`).
 - [ ] SSRF guard on fetched URLs (deny link-local/private ranges unless allowed by config).
 - [ ] Per-event overrides: hide or reveal a single event regardless of rule; a keyword filter ("never share events containing 'doctor'").

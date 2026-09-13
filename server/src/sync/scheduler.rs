@@ -8,10 +8,11 @@ use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 use crate::ics::parse::{parse_ics, ParseOptions};
-use crate::models::CalendarSource;
+use crate::models::{CalendarSource, SyncTarget};
 use crate::state::AppState;
 
 use super::connector::{connector_for, FetchResult};
+use super::push::push_target;
 use super::store::store_calendar;
 
 /// A sync that has been "running" longer than this is considered abandoned
@@ -36,6 +37,19 @@ pub async fn run_scheduler(state: AppState) {
                 }
             }
             Err(e) => tracing::error!(error = %e, "failed to claim due sources"),
+        }
+        match claim_due_targets(&state, state.config.sync_concurrency.max(1) as i64).await {
+            Ok(targets) => {
+                for target in targets {
+                    let permit = semaphore.clone().acquire_owned().await.expect("semaphore closed");
+                    let state = state.clone();
+                    tokio::spawn(async move {
+                        let _permit = permit;
+                        run_push(&state, target).await;
+                    });
+                }
+            }
+            Err(e) => tracing::error!(error = %e, "failed to claim due targets"),
         }
         tokio::time::sleep(tick).await;
     }
@@ -65,6 +79,87 @@ async fn claim_due_sources(state: &AppState, limit: i64) -> Result<Vec<CalendarS
     }
     tx.commit().await?;
     Ok(rows)
+}
+
+async fn claim_due_targets(state: &AppState, limit: i64) -> Result<Vec<SyncTarget>, sqlx::Error> {
+    let mut tx = state.db.begin().await?;
+    let rows: Vec<SyncTarget> = sqlx::query_as(
+        r#"SELECT * FROM sync_targets
+           WHERE enabled
+             AND next_push_at <= now()
+             AND (push_started_at IS NULL OR push_started_at < now() - make_interval(secs => $2))
+           ORDER BY next_push_at
+           LIMIT $1
+           FOR UPDATE SKIP LOCKED"#,
+    )
+    .bind(limit)
+    .bind(STALE_RUN_SECS as f64)
+    .fetch_all(&mut *tx)
+    .await?;
+    let ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
+    if !ids.is_empty() {
+        sqlx::query("UPDATE sync_targets SET push_started_at = now(), last_push_status = 'running' WHERE id = ANY($1)")
+            .bind(&ids)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(rows)
+}
+
+/// Request an immediate push of one target. Runs inline when `inline` is set.
+pub async fn push_target_now(state: &AppState, target_id: Uuid, inline: bool) -> Result<Option<String>, sqlx::Error> {
+    if !inline {
+        sqlx::query("UPDATE sync_targets SET next_push_at = now() WHERE id = $1").bind(target_id).execute(&state.db).await?;
+        return Ok(None);
+    }
+    let target: Option<SyncTarget> =
+        sqlx::query_as("SELECT * FROM sync_targets WHERE id = $1").bind(target_id).fetch_optional(&state.db).await?;
+    let Some(target) = target else { return Ok(None) };
+    sqlx::query("UPDATE sync_targets SET push_started_at = now(), last_push_status = 'running' WHERE id = $1")
+        .bind(target_id)
+        .execute(&state.db)
+        .await?;
+    Ok(run_push(state, target).await)
+}
+
+/// Push one target and record the outcome. Returns the error message if the
+/// push failed.
+pub async fn run_push(state: &AppState, target: SyncTarget) -> Option<String> {
+    let started = Utc::now();
+    let interval = target.push_interval_secs.max(60) as f64;
+    match push_target(state, &target).await {
+        Ok(stats) => {
+            tracing::info!(target = %target.id, name = %target.name, elapsed_ms = (Utc::now() - started).num_milliseconds(), %stats, "push ok");
+            let _ = sqlx::query(
+                r#"UPDATE sync_targets
+                   SET last_pushed_at = now(), last_push_status = 'ok', last_push_error = NULL,
+                       push_started_at = NULL, next_push_at = now() + make_interval(secs => $2)
+                   WHERE id = $1"#,
+            )
+            .bind(target.id)
+            .bind(interval)
+            .execute(&state.db)
+            .await;
+            None
+        }
+        Err(e) => {
+            let msg = format!("{e:#}");
+            tracing::warn!(target = %target.id, name = %target.name, error = %msg, "push failed");
+            let _ = sqlx::query(
+                r#"UPDATE sync_targets
+                   SET last_push_status = 'error', last_push_error = $2,
+                       push_started_at = NULL, next_push_at = now() + make_interval(secs => $3)
+                   WHERE id = $1"#,
+            )
+            .bind(target.id)
+            .bind(&msg)
+            .bind(interval.max(300.0))
+            .execute(&state.db)
+            .await;
+            Some(msg)
+        }
+    }
 }
 
 /// Request an immediate sync of one source (used by the API). The sync runs
@@ -103,6 +198,11 @@ pub async fn run_sync(state: &AppState, source: CalendarSource) -> Option<String
             .bind(interval)
             .execute(&state.db)
             .await;
+            // Inbound changes should reach the owner's targets promptly.
+            let _ = sqlx::query("UPDATE sync_targets SET next_push_at = now() WHERE user_id = $1 AND enabled")
+                .bind(source.user_id)
+                .execute(&state.db)
+                .await;
             None
         }
         Err(e) => {

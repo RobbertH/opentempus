@@ -1,6 +1,8 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import CalendarPage from "./pages/CalendarPage";
+import FlowsPage from "./pages/FlowsPage";
+import TargetsPage from "./pages/TargetsPage";
 import FriendsPage from "./pages/FriendsPage";
 import LoginPage from "./pages/LoginPage";
 import SharedWithMePage from "./pages/SharedWithMePage";
@@ -20,8 +22,13 @@ function Shell() {
         </div>
         <nav>
           <NavLink to="/" end>Calendar</NavLink>
+          <NavLink to="/flows">Flows</NavLink>
+          <div className="nav-group">In</div>
           <NavLink to="/sources">Calendars</NavLink>
+          <div className="nav-group">Out</div>
+          <NavLink to="/targets">Sync to calendars</NavLink>
           <NavLink to="/shares">Sharing</NavLink>
+          <div className="nav-group">People</div>
           <NavLink to="/friends">Friends</NavLink>
           <NavLink to="/shared">Shared with me</NavLink>
           <NavLink to="/settings">Settings</NavLink>
@@ -36,7 +43,9 @@ function Shell() {
       <main className="content">
         <Routes>
           <Route path="/" element={<CalendarPage />} />
+          <Route path="/flows" element={<FlowsPage />} />
           <Route path="/sources" element={<SourcesPage />} />
+          <Route path="/targets" element={<TargetsPage />} />
           <Route path="/shares" element={<SharesPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/shared" element={<SharedWithMePage />} />

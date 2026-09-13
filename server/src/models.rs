@@ -94,6 +94,43 @@ pub struct CalendarSource {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "target_kind", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TargetKind {
+    Caldav,
+    Google,
+    Microsoft,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct SyncTarget {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub name: String,
+    pub kind: TargetKind,
+    pub config: serde_json::Value,
+    pub visibility: serde_json::Value,
+    pub filters: serde_json::Value,
+    pub placeholder_title: String,
+    pub enabled: bool,
+    pub push_interval_secs: i32,
+    pub next_push_at: DateTime<Utc>,
+    pub push_started_at: Option<DateTime<Utc>>,
+    pub last_pushed_at: Option<DateTime<Utc>>,
+    pub last_push_status: SyncStatus,
+    pub last_push_error: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct MirroredEvent {
+    pub instance_id: Uuid,
+    pub remote_href: String,
+    pub content_hash: String,
+}
+
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct Share {
     pub id: Uuid,

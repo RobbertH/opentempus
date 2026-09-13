@@ -138,7 +138,7 @@ pub struct CreateShareBody {
     pub filters: Option<Filters>,
 }
 
-fn resolve_visibility(preset: Option<String>, explicit: Option<Visibility>) -> AppResult<Visibility> {
+pub fn resolve_visibility(preset: Option<String>, explicit: Option<Visibility>) -> AppResult<Visibility> {
     match (preset, explicit) {
         (_, Some(v)) => Ok(v),
         (Some(p), None) => Visibility::preset(&p).ok_or_else(|| AppError::bad_request("unknown preset")),
@@ -146,7 +146,7 @@ fn resolve_visibility(preset: Option<String>, explicit: Option<Visibility>) -> A
     }
 }
 
-async fn validate_filters(state: &AppState, user: &AuthUser, f: &Filters) -> AppResult<()> {
+pub async fn validate_filters(state: &AppState, user: &AuthUser, f: &Filters) -> AppResult<()> {
     if f.horizon_past_days < 0 || f.horizon_future_days < 1 || f.horizon_future_days > 3650 || f.horizon_past_days > 3650 {
         return Err(AppError::bad_request("horizon out of range"));
     }
@@ -265,6 +265,24 @@ pub async fn rotate_token(State(state): State<AppState>, user: AuthUser, Path(id
     Ok(Json(to_view(&state, load_owned(&state, &user, id).await?)))
 }
 
+/// Evaluate a rule (filters + visibility) over an owner's calendars.
+pub async fn evaluate_rule(
+    state: &AppState,
+    owner_id: Uuid,
+    visibility: &Visibility,
+    filters: &Filters,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+) -> AppResult<Vec<SharedEvent>> {
+    let (from, to) = filters.clamp_window(from, to, Utc::now());
+    if to <= from {
+        return Ok(Vec::new());
+    }
+    let rows = load_instances(state, owner_id, from, to).await?;
+    let owner_events: Vec<crate::sharing::OwnerEvent> = rows.into_iter().map(Into::into).collect();
+    Ok(project_all(visibility, filters, &owner_events))
+}
+
 /// Evaluate a share and return exactly what its audience would receive.
 pub async fn evaluate_share(
     state: &AppState,
@@ -272,15 +290,7 @@ pub async fn evaluate_share(
     from: DateTime<Utc>,
     to: DateTime<Utc>,
 ) -> AppResult<Vec<SharedEvent>> {
-    let visibility = parse_visibility(&share.visibility);
-    let filters = parse_filters(&share.filters);
-    let (from, to) = filters.clamp_window(from, to, Utc::now());
-    if to <= from {
-        return Ok(Vec::new());
-    }
-    let rows = load_instances(state, share.owner_id, from, to).await?;
-    let owner_events: Vec<crate::sharing::OwnerEvent> = rows.into_iter().map(Into::into).collect();
-    Ok(project_all(&visibility, &filters, &owner_events))
+    evaluate_rule(state, share.owner_id, &parse_visibility(&share.visibility), &parse_filters(&share.filters), from, to).await
 }
 
 /// Owner-side preview: "what will they see?"

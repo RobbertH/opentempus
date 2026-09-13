@@ -15,7 +15,8 @@ connector.fetch() ──▶ ics::parse ──▶ sync::store (events + event_ins
                                                                                   ├─ sharing::project_all       (filters + visibility)
                                                                                   │    ├─ /api/v1/public/{token}/events
                                                                                   │    ├─ /feeds/{token}.ics
-                                                                                  │    └─ /api/v1/shared-with-me/{id}/events
+                                                                                  │    ├─ /api/v1/shared-with-me/{id}/events
+                                                                                  │    └─ sync::push (write-back to CalDAV targets)
                                                                                   └─ sharing::free_slots        (/free, /availability)
 ```
 
@@ -31,9 +32,11 @@ connector.fetch() ──▶ ics::parse ──▶ sync::store (events + event_ins
   * `generate.rs` renders outbound feeds (folded lines, escaping, `DATE` for all-day, `Busy` placeholder titles, `X-OPENTEMPUS-*` properties).
   * `tz.rs` maps zone names.
 * `sync/`:
-  * `connector.rs`: the `Connector` trait (`validate_config`, `fetch`). `ics_url.rs` implements it with ETag support and a size cap.
-  * `store.rs`: one transaction per sync: upsert events keyed on `(source, uid, recurrence_id)`, rebuild `event_instances` for the source's horizon, delete events that vanished from the feed.
-  * `scheduler.rs`: every tick, claim due sources with `FOR UPDATE SKIP LOCKED`, sync with bounded concurrency, record status and back off on errors. Stale "running" rows (a crashed process) are reclaimed after 15 minutes. Multiple replicas can share one database safely.
+  * `connector.rs`: the `Connector` trait (`validate_config`, `fetch`). `ics_url.rs` implements it with ETag support and a size cap; `caldav_source.rs` uses the collection's ctag to skip unchanged calendars.
+  * `caldav.rs`: a small CalDAV client (discovery via current-user-principal / calendar-home-set, PROPFIND, calendar-query REPORT, PUT, DELETE).
+  * `store.rs`: one transaction per sync: upsert events keyed on `(source, uid, recurrence_id)`, rebuild `event_instances` for the source's horizon, delete events that vanished from the feed. Instance ids are UUIDv5 of `(event id, start)`, so they are stable across syncs; feed UIDs and mirrored events depend on that.
+  * `push.rs`: write-back. Evaluate the target's rule, render each occurrence as a standalone VEVENT with an `X-OPENTEMPUS-MIRROR` marker, hash it, diff against `mirrored_events`, and issue only the needed PUT/DELETE calls. Deleting a target removes its mirrors remotely. The parser drops any event carrying the marker, so a calendar that is both a source and a target never echoes.
+  * `scheduler.rs`: every tick, claim due sources and targets with `FOR UPDATE SKIP LOCKED`, run them with bounded concurrency, record status and back off on errors. A successful source sync schedules an immediate push for the owner's targets. Stale "running" rows (a crashed process) are reclaimed after 15 minutes. Multiple replicas can share one database safely.
 * `sharing.rs`: `Filters`, `Visibility`, `project`, `free_slots` (interval merge). Pure functions, unit tested.
 * `routes/`: thin handlers. `public.rs` is the only surface reachable with just a token and never returns more than `project` allows.
 
@@ -42,11 +45,14 @@ connector.fetch() ──▶ ics::parse ──▶ sync::store (events + event_ins
 * `events` holds one row per VEVENT (masters carry RRULE; overrides carry `recurrence_id`).
 * `event_instances` holds expanded occurrences inside `[now - horizon_past, now + horizon_future]` per source. All reads go through this table with a simple range index. It is derived data and rebuilt on every sync, so it can be wiped at any time.
 * All timestamps are `timestamptz`. All-day events are stored as UTC-midnight boundaries with `all_day = true` and rendered as `DATE` values.
-* Share `visibility` and `filters` are `jsonb`, deserialized into typed structs with defaults, so adding a field is a code change, not a migration.
+* Share and target `visibility` and `filters` are `jsonb`, deserialized into typed structs with defaults, so adding a field is a code change, not a migration.
+* `sync_targets` + `mirrored_events` record what was written where (href, ETag, content hash) so pushes are incremental.
 
 ## Web app (`web/`)
 
 Vite + React + TypeScript, no UI framework. Built into `web/dist` and embedded into the binary with `rust-embed`; any unknown path serves `index.html` so client-side routing works. In development Vite proxies `/api` and `/feeds` to the server.
+
+The **Flows** page (`FlowsPage.tsx`) is a hand-drawn SVG: sources on the left, a hub in the middle, one node per rule on the right (or per audience in "Who has access" mode). "What feeds what" is computed client-side by applying each rule's filters (`source_ids`, `categories`) to the source list, the same predicate the server uses. A CalDAV source whose collection is also a target destination is flagged as two-way.
 
 ## Security notes
 

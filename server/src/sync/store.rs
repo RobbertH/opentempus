@@ -133,6 +133,12 @@ async fn upsert_event(tx: &mut sqlx::PgConnection, source_id: Uuid, e: &ParsedEv
     Ok(id.0)
 }
 
+/// Occurrence ids are derived from the event id and the start instant, so
+/// they survive re-syncs. Feed subscribers and mirrored events rely on that.
+pub fn instance_id(event_id: Uuid, start_at: DateTime<Utc>) -> Uuid {
+    Uuid::new_v5(&event_id, start_at.to_rfc3339().as_bytes())
+}
+
 async fn insert_instance(
     tx: &mut sqlx::PgConnection,
     event_id: Uuid,
@@ -142,9 +148,9 @@ async fn insert_instance(
     all_day: bool,
 ) -> anyhow::Result<()> {
     sqlx::query(
-        "INSERT INTO event_instances (id, event_id, source_id, start_at, end_at, all_day) VALUES ($1, $2, $3, $4, $5, $6)",
+        "INSERT INTO event_instances (id, event_id, source_id, start_at, end_at, all_day) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING",
     )
-    .bind(Uuid::new_v4())
+    .bind(instance_id(event_id, start_at))
     .bind(event_id)
     .bind(source_id)
     .bind(start_at)

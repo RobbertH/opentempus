@@ -16,6 +16,7 @@ pub mod friends;
 pub mod public;
 pub mod shares;
 pub mod sources;
+pub mod targets;
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
@@ -28,6 +29,12 @@ pub fn router(state: AppState) -> Router {
         .route("/sources", get(sources::list).post(sources::create))
         .route("/sources/{id}", get(sources::get_one).patch(sources::update).delete(sources::delete))
         .route("/sources/{id}/sync", post(sources::sync_now))
+        // outbound sync targets
+        .route("/targets", get(targets::list).post(targets::create))
+        .route("/targets/{id}", get(targets::get_one).patch(targets::update).delete(targets::delete))
+        .route("/targets/{id}/push", post(targets::push_now))
+        .route("/targets/{id}/preview", get(targets::preview))
+        .route("/caldav/discover", post(targets::caldav_discover))
         // own events
         .route("/events", get(events::list_mine))
         // friends

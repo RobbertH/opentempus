@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { api, type Source } from "../api";
+import { api, type CalDavConfig, type Source, type SourceKind } from "../api";
+import { CalDavPicker } from "../CalDavPicker";
 import { Badge, Empty, ErrorBox, Modal, Page, useAsync } from "../components";
 import { fmtDateTime } from "../time";
 
@@ -53,7 +54,7 @@ export default function SourcesPage() {
                 {!s.enabled && <Badge tone="warn">paused</Badge>}
                 <StatusBadge s={s} />
               </div>
-              <div className="muted small mono ellipsis">{s.config.url}</div>
+              <div className="muted small mono ellipsis">{s.config.calendar_url ?? s.config.url}</div>
               <div className="muted small">
                 Last sync {fmtDateTime(s.last_synced_at)} · every {Math.round(s.sync_interval_secs / 60)} min
                 {s.last_sync_error && <span className="error-text"> · {s.last_sync_error}</span>}
@@ -102,9 +103,11 @@ function StatusBadge({ s }: { s: Source }) {
 
 function SourceForm({ source, onClose, onSaved }: { source: Source | null; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(source?.name ?? "");
+  const [kind, setKind] = useState<SourceKind>(source?.kind ?? "ics_url");
   const [url, setUrl] = useState(source?.config.url ?? "");
   const [username, setUsername] = useState(source?.config.username ?? "");
   const [password, setPassword] = useState(source?.config.password ?? "");
+  const [caldav, setCaldav] = useState<CalDavConfig>(source?.kind === "caldav" ? source.config : {});
   const [category, setCategory] = useState(source?.category ?? "personal");
   const [color, setColor] = useState(source?.color ?? COLORS[0]);
   const [interval, setInterval] = useState(source ? Math.round(source.sync_interval_secs / 60) : 15);
@@ -116,14 +119,19 @@ function SourceForm({ source, onClose, onSaved }: { source: Source | null; onClo
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const config: Record<string, string> = { url };
-    if (username) config.username = username;
-    if (password) config.password = password;
+    let config: Record<string, string | undefined>;
+    if (kind === "caldav") {
+      config = { ...caldav };
+    } else {
+      config = { url };
+      if (username) config.username = username;
+      if (password) config.password = password;
+    }
     try {
       if (source) {
         await api.patch(`/sources/${source.id}`, { name, config, category, color, sync_interval_secs: interval * 60, enabled });
       } else {
-        await api.post("/sources", { name, kind: "ics_url", config, category, color, sync_interval_secs: interval * 60 });
+        await api.post("/sources", { name, kind, config, category, color, sync_interval_secs: interval * 60 });
       }
       onSaved();
     } catch (err) {
@@ -141,26 +149,42 @@ function SourceForm({ source, onClose, onSaved }: { source: Source | null; onClo
           Name
           <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Work" />
         </label>
-        <label>
-          iCal / ICS address
-          <input value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" />
-          <span className="hint">
-            Google: calendar settings → "Secret address in iCal format". Outlook: "Publish calendar" → ICS link. Apple/iCloud: share as public calendar (webcal://).
-          </span>
-        </label>
-        <details>
-          <summary className="muted small">Protected feed (basic auth)</summary>
+        {!source && (
           <div className="row">
-            <label>
-              Username
-              <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+            <label className="inline">
+              <input type="radio" checked={kind === "ics_url"} onChange={() => setKind("ics_url")} /> iCal / ICS address (read-only)
             </label>
-            <label>
-              Password
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+            <label className="inline">
+              <input type="radio" checked={kind === "caldav"} onChange={() => setKind("caldav")} /> CalDAV account (can also be a sync target)
             </label>
           </div>
-        </details>
+        )}
+        {kind === "ics_url" ? (
+          <>
+            <label>
+              iCal / ICS address
+              <input value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" />
+              <span className="hint">
+                Google: calendar settings → "Secret address in iCal format". Outlook: "Publish calendar" → ICS link. Apple/iCloud: share as public calendar (webcal://).
+              </span>
+            </label>
+            <details>
+              <summary className="muted small">Protected feed (basic auth)</summary>
+              <div className="row">
+                <label>
+                  Username
+                  <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+                </label>
+                <label>
+                  Password
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+                </label>
+              </div>
+            </details>
+          </>
+        ) : (
+          <CalDavPicker config={caldav} setConfig={setCaldav} />
+        )}
         <div className="row">
           <label>
             Category
