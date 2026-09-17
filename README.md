@@ -45,17 +45,17 @@ Set `OPENTEMPUS_ALLOW_REGISTRATION=false` after your friends have signed up if y
 
 ## Local development
 
-Requirements: a recent stable Rust (CI and the Docker image use 1.94), Node 22 + pnpm, PostgreSQL 14+.
+Requirements: a recent stable Rust (CI and the Docker image use 1.94), Bun 1.2+, PostgreSQL 14+.
 
 ```sh
 cp .env.example .env               # point DATABASE_URL at your Postgres
-cd web && pnpm install && pnpm dev # web app on :5173, proxies /api to :8080
+cd web && bun install && bun run dev # web app on :5173, proxies /api to :8080
 cargo run                          # API on :8080, migrations run automatically
 ```
 
-For a single binary with the web app embedded: `cd web && pnpm build && cargo build --release`.
+For a single binary with the web app embedded: `cd web && bun run build && cargo build --release`.
 
-Tests: `cargo test` (no database needed) and `cd web && pnpm build` (type-checks).
+Tests: `cargo test` (no database needed) and `cd web && bun run build` (type-checks).
 
 ## Configuration
 

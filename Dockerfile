@@ -1,11 +1,10 @@
 # ---- web app ---------------------------------------------------------------
-FROM node:22-alpine AS web
+FROM oven/bun:1-alpine AS web
 WORKDIR /src/web
-RUN corepack enable
-COPY web/package.json web/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
 COPY web/ ./
-RUN pnpm build
+RUN bun run build
 
 # ---- server ----------------------------------------------------------------
 FROM rust:1.94-bookworm AS server

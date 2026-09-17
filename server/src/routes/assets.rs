@@ -25,7 +25,7 @@ pub async fn serve(uri: Uri) -> Response {
         None => (
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-            "<h1>OpenTempus API is running</h1><p>The web app was not bundled into this binary. Build it with <code>cd web && pnpm build</code> and rebuild the server, or run the Vite dev server.</p>",
+            "<h1>OpenTempus API is running</h1><p>The web app was not bundled into this binary. Build it with <code>cd web && bun run build</code> and rebuild the server, or run the Vite dev server.</p>",
         )
             .into_response(),
     }
