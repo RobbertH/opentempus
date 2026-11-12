@@ -1,0 +1,28 @@
+# Overlay for running behind an existing Traefik instance.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+#
+# or set COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml in .env
+# and keep using plain `docker compose up -d`.
+#
+# Requires Docker Compose 2.24+ (for `!reset`).
+services:
+  app:
+    # Traefik reaches the container over the shared network; no host port needed.
+    ports: !reset []
+    networks:
+      - default
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-traefik}
+      traefik.http.routers.opentempus.rule: Host(`${OPENTEMPUS_HOST:?set OPENTEMPUS_HOST, e.g. cal.example.com}`)
+      traefik.http.routers.opentempus.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.opentempus.tls: "true"
+      traefik.http.routers.opentempus.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.services.opentempus.loadbalancer.server.port: "8080"
+
+networks:
+  traefik:
+    name: ${TRAEFIK_NETWORK:-traefik}
+    external: true
